@@ -14,81 +14,8 @@
 
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable {
-    address private _owner;
-
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
-
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
-    function __Ownable_init() internal onlyInitializing {
-        __Ownable_init_unchained();
-    }
-
-    function __Ownable_init_unchained() internal onlyInitializing {
-        _transferOwnership(_msgSender());
-    }
-
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        _checkOwner();
-        _;
-    }
-
-    /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view virtual returns (address) {
-        return _owner;
-    }
-
-    /**
-     * @dev Throws if the sender is not the owner.
-     */
-    function _checkOwner() internal view virtual {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(
-            newOwner != address(0),
-            "Ownable: new owner is the zero address"
-        );
-        _transferOwnership(newOwner);
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Internal function without access restriction.
-     */
-    function _transferOwnership(address newOwner) internal virtual {
-        address oldOwner = _owner;
-        _owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
-    }
-
-    /**
-     * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-     */
-    uint256[49] private __gap;
-}
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./OwnableUpgradeable.sol";
 
 contract EGMigrate is OwnableUpgradeable {
     struct MigrationToken {
@@ -117,21 +44,33 @@ contract EGMigrate is OwnableUpgradeable {
     mapping(uint256 => address) public sourceTokenIndices; // mapping of source token index to source token address
 
     uint256 public migrationCounter; // counter for all migrations
-    mapping(address => mapping(address => Migration[])) private userMigrations; // mapping of source token address to mapping of user address to array of Migrations
+    mapping(address => mapping(address => Migration[])) private _userMigrations; // mapping of source token address to mapping of user address to array of Migrations
 
+    /**
+     * @dev Emitted when add migration token
+     **/
     event AddMigrationToken(
         address indexed sourceToken,
         address indexed targetToken,
         uint256 rate,
         address indexed devAddress
     );
+    /**
+     * @dev Emitted when set migration token status
+     **/
     event SetStatusOfMigrationToken(address indexed token, bool status);
+    /**
+     * @dev Emitted when add update migration token info
+     **/
     event UpdateMigrationTokenInfo(
         address indexed sourceToken,
         address indexed targetToken,
         uint256 rate,
         address indexed devAddress
     );
+    /**
+     * @dev Emitted when migrate token
+     **/
     event Migrate(
         address indexed fromAddress,
         address toAddress,
@@ -140,13 +79,20 @@ contract EGMigrate is OwnableUpgradeable {
         address indexed targetToken,
         uint256 amountOfTargetToken
     );
+    /**
+     * @dev Emitted when return unused tokens back to dev team
+     **/
     event TokensReturned(
         address indexed sourceToken,
         address indexed toAddress,
         uint256 amount
     );
 
-    function initialize() external initializer{
+    /**
+     * @dev function that can be invoked at most once
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     **/
+    function initialize() external initializer {
         __Ownable_init();
     }
 
@@ -175,6 +121,10 @@ contract EGMigrate is OwnableUpgradeable {
         require(
             targetToken != address(0),
             "EGMigrate: target token address is zero"
+        );
+        require(
+            sourceToken != targetToken,
+            "EGMigrate: sourceToken is the same as tragetToken"
         );
         require(0 < rate, "EGMigrate: rate is zero");
 
@@ -239,6 +189,10 @@ contract EGMigrate is OwnableUpgradeable {
             targetToken != address(0),
             "EGMigrate: target token address is zero"
         );
+        require(
+            sourceToken != targetToken,
+            "EGMigrate: sourceToken is the same as tragetToken"
+        );
         require(0 < rate, "EGMigrate: rate is zero");
 
         migrationTokens[sourceToken].targetToken = targetToken;
@@ -282,17 +236,17 @@ contract EGMigrate is OwnableUpgradeable {
         MigrationToken storage migrationToken = migrationTokens[token];
 
         require(
-            amount <= IERC20(token).balanceOf(msg.sender),
+            amount <= IERC20(token).balanceOf(_msgSender()),
             "EGMigrate: insufficient balance of source token in holder wallet"
         );
         require(
-            amount <= IERC20(token).allowance(msg.sender, address(this)),
+            amount <= IERC20(token).allowance(_msgSender(), address(this)),
             "EGMigrate: holder has insufficient approved allowance for source token"
         );
 
         uint256 migrationAmount = (amount *
-            (10**ERC20(migrationToken.targetToken).decimals())) /
-            (10**ERC20(token).decimals()) /
+            (10**IERC20Metadata(migrationToken.targetToken).decimals())) /
+            (10**IERC20Metadata(token).decimals()) /
             (migrationToken.rate);
 
         require(
@@ -302,7 +256,7 @@ contract EGMigrate is OwnableUpgradeable {
         );
 
         IERC20(token).transferFrom(
-            msg.sender,
+            _msgSender(),
             migrationToken.devAddress,
             amount
         );
@@ -315,7 +269,7 @@ contract EGMigrate is OwnableUpgradeable {
             migrationToken.amountOfMigratedTargetToken +
             migrationAmount;
 
-        Migration[] storage userTxns = userMigrations[token][_msgSender()];
+        Migration[] storage userTxns = _userMigrations[token][_msgSender()];
         if (userTxns.length == 0) {
             migrationToken.numberOfMigrators =
                 migrationToken.numberOfMigrators +
@@ -325,18 +279,18 @@ contract EGMigrate is OwnableUpgradeable {
         userTxns.push(
             Migration({
                 migrationId: migrationCounter,
-                toAddress: msg.sender,
+                toAddress: toAddress,
                 timestamp: block.timestamp,
                 amountOfSourceToken: amount,
                 amountOfTargetToken: migrationAmount
             })
         );
-        userMigrations[token][_msgSender()] = userTxns;
+        _userMigrations[token][_msgSender()] = userTxns;
 
         migrationCounter = migrationCounter + 1;
 
         emit Migrate(
-            msg.sender,
+            _msgSender(),
             toAddress,
             token,
             amount,
@@ -356,7 +310,7 @@ contract EGMigrate is OwnableUpgradeable {
         view
         returns (uint256)
     {
-        return userMigrations[sourceToken][userAddress].length;
+        return _userMigrations[sourceToken][userAddress].length;
     }
 
     /**
@@ -380,7 +334,9 @@ contract EGMigrate is OwnableUpgradeable {
             uint256
         )
     {
-        Migration storage txn = userMigrations[sourceToken][userAddress][index];
+        Migration storage txn = _userMigrations[sourceToken][userAddress][
+            index
+        ];
 
         return (
             txn.migrationId,
@@ -410,6 +366,12 @@ contract EGMigrate is OwnableUpgradeable {
         require(
             migrationTokens[token].isPresent,
             "ERC20: source token does not exist"
+        );
+        require(
+                IERC20(migrationTokens[token].targetToken).balanceOf(
+                    address(this)
+                ) >= amount,
+            "EGMigrate: Target token balance in contract is insufficient"
         );
 
         MigrationToken storage migrationToken = migrationTokens[token];
