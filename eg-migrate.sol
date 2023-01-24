@@ -38,15 +38,35 @@ contract EGMigrate is OwnableUpgradeable {
         uint256 amountOfTargetToken;
     }
 
-    uint256 public sourceTokenCounter; // counter for source tokens
-
-    mapping(address => MigrationToken) public migrationTokens; // mapping of source token address to migration
-    mapping(uint256 => address) public sourceTokenIndices; // mapping of source token index to source token address
-
-    uint256 public migrationCounter; // counter for all migrations
-    mapping(address => mapping(address => Migration[])) private _userMigrations; // mapping of source token address to mapping of user address to array of Migrations
+    /**
+     * @dev counter for source tokens
+     **/
+    uint256 public sourceTokenCounter;
 
     /**
+     * @dev mapping of source token address to migration
+     **/
+    mapping(address => MigrationToken) public migrationTokens;
+    /**
+     * @dev mapping of source token index to source token address
+     **/
+    mapping(uint256 => address) public sourceTokenIndices;
+
+    /**
+     * @dev counter for all migrations
+     **/
+    uint256 public migrationCounter;
+    /**
+     * @dev mapping of source token address to mapping of user address to array of Migrations
+     **/
+    mapping(address => mapping(address => Migration[])) private _userMigrations;
+
+    /**
+     * @param sourceToken source token address
+     * @param targetToken target token address
+     * @param rate rate of migration
+     * @param devAddress the address to send the source tokens to
+     *
      * @dev Emitted when add migration token
      **/
     event AddMigrationToken(
@@ -56,10 +76,18 @@ contract EGMigrate is OwnableUpgradeable {
         address indexed devAddress
     );
     /**
+     * @param token source token address
+     * @param status status of migration
+     *
      * @dev Emitted when set migration token status
      **/
     event SetStatusOfMigrationToken(address indexed token, bool status);
     /**
+     * @param sourceToken source token address
+     * @param targetToken target token address
+     * @param rate rate of migration
+     * @param devAddress the address to send the source tokens to
+     *
      * @dev Emitted when add update migration token info
      **/
     event UpdateMigrationTokenInfo(
@@ -69,6 +97,12 @@ contract EGMigrate is OwnableUpgradeable {
         address indexed devAddress
     );
     /**
+     * @param fromAddress migrator wallet address
+     * @param toAddress address to send the new tokens to holder
+     * @param sourceToken source token address
+     * @param amountOfSourceToken amount of source token address
+     * @param targetToken target token
+     * @param amountOfTargetToken amount of target token
      * @dev Emitted when migrate token
      **/
     event Migrate(
@@ -80,6 +114,9 @@ contract EGMigrate is OwnableUpgradeable {
         uint256 amountOfTargetToken
     );
     /**
+     * @param sourceToken source token address
+     * @param toAddress wallet address to return the source tokens to
+     * @param amount amount of source token
      * @dev Emitted when return unused tokens back to dev team
      **/
     event TokensReturned(
@@ -90,7 +127,7 @@ contract EGMigrate is OwnableUpgradeable {
 
     /**
      * @dev function that can be invoked at most once
-     * @dev Initializes the contract setting the deployer as the initial owner.
+     * @dev Initializes the contract, setting the deployer as the initial owner
      **/
     function initialize() external initializer {
         __Ownable_init();
@@ -99,7 +136,7 @@ contract EGMigrate is OwnableUpgradeable {
     /**
      * @param sourceToken source token address
      * @param targetToken target token address
-     * @param rate rate of migration
+     * @param rate migration ratio
      * @param devAddress the address to send the source tokens to
 
      * @dev add migration token
@@ -170,7 +207,7 @@ contract EGMigrate is OwnableUpgradeable {
     /**
      * @param sourceToken source token address
      * @param targetToken target token address
-     * @param rate rate of migration
+     * @param rate migration ratio
      * @param devAddress the address to send the source tokens to
 
      * @dev update migration token info
@@ -351,9 +388,9 @@ contract EGMigrate is OwnableUpgradeable {
      * @param toAddress wallet address to return the source tokens to
      * @param amount amount of source token
      *
-     * @dev return unused tokens back to dev team
+     * @dev return unused tokens back to the dev team
      */
-    function returnTokens(
+     function returnTokens(
         address token,
         address toAddress,
         uint256 amount
