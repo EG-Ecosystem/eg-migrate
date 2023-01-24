@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.2;
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
 abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable {
     address private _owner;
 
